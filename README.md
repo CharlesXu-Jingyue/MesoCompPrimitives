@@ -48,8 +48,31 @@ Compose primitives via their ports to build a coarse network $\tilde{W}$. Two va
 
 Swap a primitive with a functionally similar but topologically different one (e.g., WTA implemented via pooled inhibition vs. subtractive feedforward) and show which task metrics shift—this demonstrates the necessity of the identified computational primitive.
 
+## Implementation Progress
+
+### Current Status: Proof-of-Concept (notebooks/poc.ipynb)
+
+**Completed:**
+- Data Loading & Preprocessing: FlyWire ring extend connectivity data (855 neurons, 68 cell types)
+- Cell Type Grouping: Neurons organized by cell type with alphabetical ordering
+- Matrix Visualization: Signed and unsigned connectivity matrices with cell type boundaries
+- Data Structure Setup: Grouped connectivity matrices, neuron IDs, and cell type mappings
+
+**In Progress:**
+- Normalization: Uniform scaling and information-based normalization methods
+- System Reduction: Louvain community detection method
+- System Identification: Primitive identification algorithms
+- Role Discovery: Computational library and canonical labeling
+- System Synthesis: Primitive composition and reconstruction
+- Graph Laplacian: Spectral analysis methods
+
+**Dataset Overview:**
+- 855 neurons across 68 cell types (EPG, EL, Delta7, PFNm, etc.)
+- Signed connectivity matrix with both excitatory and inhibitory connections
+- Cell types range from 1-119 neurons (PFNm largest, several singleton types)
+
 ## Deliverables
 
-Deliverable for the 20-min talk: one end-to-end example (e.g., a reciprocal core + relay shell distilled to “integrator + gate”).
+Deliverable for the 20-min talk: one end-to-end example (e.g., a reciprocal core + relay shell distilled to "integrator + gate").
 
 Exercise for the 45-min tutorial: give a 3-block toy $W$, ask them to (i) find ports via SVD on inter-block submatrices, (ii) keep 1–2 Hankel modes/block, (iii) classify the primitive from its $A_k^{red}$ spectrum.
