@@ -53,23 +53,33 @@ Swap a primitive with a functionally similar but topologically different one (e.
 ### Current Status: Proof-of-Concept (notebooks/poc.ipynb)
 
 **Completed:**
-- Data Loading & Preprocessing: FlyWire ring extend connectivity data (855 neurons, 68 cell types)
-- Cell Type Grouping: Neurons organized by cell type with alphabetical ordering
-- Matrix Visualization: Signed and unsigned connectivity matrices with cell type boundaries
-- Data Structure Setup: Grouped connectivity matrices, neuron IDs, and cell type mappings
+- **Data Loading & Preprocessing**: FlyWire ring extend connectivity data (855 neurons, 68 cell types)
+- **Cell Type Grouping**: Neurons organized by cell type with alphabetical ordering
+- **Matrix Visualization**: Signed and unsigned connectivity matrices with cell type boundaries
+- **Data Structure Setup**: Grouped connectivity matrices, neuron IDs, and cell type mappings
+- **Unconnected Node Detection**: Analysis shows all 855 neurons are connected (no isolated nodes)
+- **Cell Type Selection**: Focused analysis on Delta7 (40 neurons) and EPG (47 neurons) subset (87 total)
+- **Graph Laplacian Analysis**: Complete implementation of multiple Laplacian variants:
+  - Out-degree Laplacian (L_out = D_out - A)
+  - In-degree Laplacian (L_in = D_in - A^T)
+  - Random walk Laplacian (L_rw = I - D_out^(-1) * A)
+  - Symmetric Laplacian via symmetrize-then-normalize
+  - Direct symmetrization of out-degree Laplacian
+- **Community Detection**: Implemented and compared Louvain and Leiden algorithms:
+  - Louvain: 4 communities (sizes: 24, 24, 20, 19), modularity: 0.2123
+  - Leiden: 6 communities (sizes: 23, 20, 13, 13, 10, 8), modularity: 0.1853
+  - Cell type distribution analysis across detected communities
 
 **In Progress:**
-- Normalization: Uniform scaling and information-based normalization methods
-- System Reduction: Louvain community detection method
 - System Identification: Primitive identification algorithms
 - Role Discovery: Computational library and canonical labeling
 - System Synthesis: Primitive composition and reconstruction
-- Graph Laplacian: Spectral analysis methods
 
 **Dataset Overview:**
-- 855 neurons across 68 cell types (EPG, EL, Delta7, PFNm, etc.)
+- Original: 855 neurons across 68 cell types
+- Current focus: 87 neurons (Delta7 + EPG cell types)
 - Signed connectivity matrix with both excitatory and inhibitory connections
-- Cell types range from 1-119 neurons (PFNm largest, several singleton types)
+- Dense connectivity: 1,729 edges in 87-neuron subnetwork
 
 ## Deliverables
 
