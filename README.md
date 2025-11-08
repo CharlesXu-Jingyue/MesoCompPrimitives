@@ -70,6 +70,15 @@ Swap a primitive with a functionally similar but topologically different one (e.
   - Leiden: 6 communities (sizes: 23, 20, 13, 13, 10, 8), modularity: 0.1853
   - Cell type distribution analysis across detected communities
 
+**Recently Added:**
+- **Bi-orthogonal Laplacian Renormalization Group (bi-LRG)**: Complete implementation of hierarchical coarse-graining
+  - Spectral analysis of directed random-walk dynamics
+  - Bi-orthogonal mode decomposition for non-symmetric operators
+  - Bi-embedding and mesoscale group discovery
+  - Mass-preserving Markov lumping
+  - Coarse-grained network operators (P_group, L_group, A_group)
+  - Spectral fidelity metrics and hierarchical extension
+
 **In Progress:**
 - System Identification: Primitive identification algorithms
 - Role Discovery: Computational library and canonical labeling
