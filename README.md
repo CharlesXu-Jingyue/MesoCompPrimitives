@@ -89,9 +89,15 @@ Swap a primitive with a functionally similar but topologically different one (e.
   - Balanced symmetrization implementation
   - Eigenvalue statistics and zero eigenvalue detection
   - Spectral plotting with eigenvalue distributions
+- **System Identification - CTRNN Analysis**: Row-sum normalized fixed-point and blockwise linearization pipeline
+  - Global row-sum normalization ensuring contraction with safety margin c < 1
+  - Per-block fixed-point computation using damped Picard iteration
+  - Local sigmoid gains computation: Γ_r = diag(σ'(x_r*))
+  - Linearized dynamics construction: δẋ = Aδx + Bδu with block structure
+  - Optional eigenvalue, Schur decomposition, and balanced truncation analyses
+  - Global stability checking and convergence diagnostics
 
 **In Progress:**
-- **System Identification**: Primitive identification algorithms and local response modeling
 - **Role Discovery**: Computational library development and canonical labeling
 - **System Synthesis**: Primitive composition and reconstruction testing
 - **Koopman Mode Decomposition**: Advanced dynamical analysis methods
@@ -109,6 +115,12 @@ Swap a primitive with a functionally similar but topologically different one (e.
   - Out/in-degree Laplacians for directed flow analysis
   - Random walk and symmetric normalization schemes
   - Balanced symmetrization for numerical stability
+- **Continuous-Time RNN Linearization**: Fixed-point and local linearization framework
+  - Row-sum normalization: W̃ = αW with contraction factor α = 4c/||W||∞
+  - Block-wise fixed-point iteration: x_r* = W̃_rr σ(x_r*) + b_r
+  - Local gain matrices: Γ_r = diag(σ'(x_r*)) for sigmoid nonlinearity
+  - LTI dynamics: A_rr = -I/τ + W̃_rr Γ_r/τ, E_rs = U_rs Γ_s/τ
+  - Stability analysis and balanced realization theory
 
 **Dataset Overview:**
 - Original: 855 neurons across 68 cell types
