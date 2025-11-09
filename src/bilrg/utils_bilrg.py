@@ -245,7 +245,7 @@ def validate_transition_matrix(P: Union[np.ndarray, sp.spmatrix],
 def create_teleportation_matrix(A: Union[np.ndarray, sp.spmatrix],
                                alpha: float = 0.95) -> Union[np.ndarray, sp.spmatrix]:
     """
-    Create teleportation matrix for handling dangling nodes.
+    Create teleportation matrix for handling dangling nodes using lazy self-loops.
 
     Parameters
     ----------

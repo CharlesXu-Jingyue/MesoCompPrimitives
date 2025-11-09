@@ -72,17 +72,43 @@ Swap a primitive with a functionally similar but topologically different one (e.
 
 **Recently Added:**
 - **Bi-orthogonal Laplacian Renormalization Group (bi-LRG)**: Complete implementation of hierarchical coarse-graining
-  - Spectral analysis of directed random-walk dynamics
-  - Bi-orthogonal mode decomposition for non-symmetric operators
-  - Bi-embedding and mesoscale group discovery
-  - Mass-preserving Markov lumping
+  - Spectral analysis of directed random-walk dynamics with bi-orthogonal decomposition
+  - Left and right eigenvector computation for non-symmetric operators
+  - Bi-orthogonality verification (δ_ij inner products)
+  - Mass-preserving Markov lumping with group assignment
   - Coarse-grained network operators (P_group, L_group, A_group)
-  - Spectral fidelity metrics and hierarchical extension
+  - Spectral fidelity metrics and hierarchical reduction capability
+- **Bi-Galerkin Projection Analysis**: Advanced spectral projection method
+  - Projection of operators into subspaces spanned by slowest modes
+  - Bi-Galerkin projected operators: P_galerkin, L_galerkin, A_galerkin
+  - Mathematical framework: U_k^H @ Operator @ V_k projections
+  - Comparative analysis with Markov lumping approaches
+  - Visualization of projected operators with diverging colormaps
+- **Enhanced Eigenspectrum Analysis**: Comprehensive spectral characterization
+  - Multiple Laplacian variants: L_out, L_in, L_rw, L_sym, L_bal
+  - Balanced symmetrization implementation
+  - Eigenvalue statistics and zero eigenvalue detection
+  - Spectral plotting with eigenvalue distributions
 
 **In Progress:**
-- System Identification: Primitive identification algorithms
-- Role Discovery: Computational library and canonical labeling
-- System Synthesis: Primitive composition and reconstruction
+- **System Identification**: Primitive identification algorithms and local response modeling
+- **Role Discovery**: Computational library development and canonical labeling
+- **System Synthesis**: Primitive composition and reconstruction testing
+- **Koopman Mode Decomposition**: Advanced dynamical analysis methods
+
+**Mathematical Framework Implemented:**
+- **Bi-orthogonal Spectral Analysis**: For directed networks with non-symmetric Laplacians
+  - Left/right eigenvector decomposition with bi-orthogonality constraints
+  - Spectral fidelity preservation through hierarchical coarse-graining
+  - Multi-scale network dynamics via eigenmode projection
+- **Galerkin Projection Methods**: Dimensionality reduction preserving spectral properties
+  - Bi-Galerkin projection: U_k^H @ L @ V_k for reduced-order modeling
+  - Comparison between spectral projection and Markov lumping
+  - Visualization and analysis of projected operator structure
+- **Graph Laplacian Variants**: Comprehensive treatment of directed network operators
+  - Out/in-degree Laplacians for directed flow analysis
+  - Random walk and symmetric normalization schemes
+  - Balanced symmetrization for numerical stability
 
 **Dataset Overview:**
 - Original: 855 neurons across 68 cell types

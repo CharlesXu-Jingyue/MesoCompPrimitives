@@ -36,23 +36,26 @@ class BiLRG:
         Clustering method ('kmeans' or 'soft')
     realify : bool, default=True
         Whether to convert complex modes to real representation
+    spectral_matrix : str, default='L'
+        Matrix to use for spectral decomposition ('L' for Laplacian, 'P' for transition matrix)
     random_state : int, optional
         Random seed for reproducibility
     """
 
     def __init__(self, k: int = 5, alpha: float = 0.95,
                  cluster_method: str = 'kmeans', realify: bool = True,
-                 random_state: Optional[int] = None):
+                 spectral_matrix: str = 'L', random_state: Optional[int] = None):
         self.k = k
         self.alpha = alpha
         self.cluster_method = cluster_method
         self.realify = realify
+        self.spectral_matrix = spectral_matrix
         self.random_state = random_state
 
         # Results storage
         self.A_ = None
         self.P_ = None
-        self.L_rw_ = None
+        self.L_ = None
         self.U_k_ = None
         self.V_k_ = None
         self.Lambda_k_ = None
@@ -70,7 +73,8 @@ class BiLRG:
         self.L_galerkin_ = None  # Bi-Galerkin projected Laplacian
         self.A_galerkin_ = None  # Bi-Galerkin projected adjacency
 
-    def fit(self, A: Union[np.ndarray, sp.spmatrix]) -> "BiLRG":
+    def fit(self, A: Union[np.ndarray, sp.spmatrix],
+            L: Optional[Union[np.ndarray, sp.spmatrix]] = None) -> "BiLRG":
         """
         Fit bi-LRG to adjacency matrix.
 
@@ -78,6 +82,8 @@ class BiLRG:
         ----------
         A : array-like, shape (n, n)
             Weighted directed adjacency matrix
+        L : array-like, shape (n, n), optional
+            Custom Laplacian matrix. If provided, bypasses internal Laplacian computation
 
         Returns
         -------
@@ -90,11 +96,25 @@ class BiLRG:
         # Step 1: Create transition matrix
         self.P_ = self._create_transition_matrix(A)
 
-        # Step 2: Create random-walk Laplacian
-        self.L_rw_ = self._create_laplacian(self.P_)
+        # Step 2: Use provided Laplacian or create random-walk Laplacian
+        if L is not None:
+            # Use user-provided Laplacian
+            self.L_ = L
+        else:
+            # Create random-walk Laplacian: L_rw = I - P
+            self.L_ = self._create_laplacian(self.P_)
 
         # Step 3: Compute bi-orthogonal modes
-        self.U_k_, self.V_k_, self.Lambda_k_ = self._compute_modes(self.L_rw_)
+        if self.spectral_matrix == 'P':
+            # Use transition matrix for spectral decomposition
+            spectral_op = self.P_
+        elif self.spectral_matrix == 'L':
+            # Use Laplacian for spectral decomposition (default)
+            spectral_op = self.L_
+        else:
+            raise ValueError(f"spectral_matrix must be 'P' or 'L', got {self.spectral_matrix}")
+
+        self.U_k_, self.V_k_, self.Lambda_k_ = self._compute_modes(spectral_op)
 
         # Step 4: Create bi-embedding
         self.X_ = self._create_biembedding(self.U_k_, self.V_k_)
@@ -129,22 +149,22 @@ class BiLRG:
 
     def _create_laplacian(self, P: Union[np.ndarray, sp.spmatrix]
                          ) -> Union[np.ndarray, sp.spmatrix]:
-        """Create random-walk Laplacian L_rw = I - P."""
+        """Create random-walk Laplacian L = I - P."""
         n = P.shape[0]
 
         if is_sparse(P):
             I = sp.eye(n, format='csr')
-            L_rw = I - P
+            L = I - P
         else:
             I = np.eye(n)
-            L_rw = I - P
+            L = I - P
 
-        return L_rw
+        return L
 
-    def _compute_modes(self, L_rw: Union[np.ndarray, sp.spmatrix]
+    def _compute_modes(self, spectral_op: Union[np.ndarray, sp.spmatrix]
                       ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Compute bi-orthogonal modes."""
-        U_k, V_k, Lambda_k = biorthogonal_modes(L_rw, k=self.k)
+        """Compute bi-orthogonal modes from spectral operator (P or L)."""
+        U_k, V_k, Lambda_k = biorthogonal_modes(spectral_op, k=self.k)
 
         # Realify if requested
         if self.realify:
@@ -205,6 +225,7 @@ class BiLRG:
 
             # Create soft membership based on distances to centroids
             distances = kmeans.transform(X)
+            
             # Convert distances to probabilities via softmax
             C = np.exp(-distances / np.std(distances))
             C = C / C.sum(axis=1, keepdims=True)
@@ -288,7 +309,7 @@ class BiLRG:
 
         This projects the operators using the bi-orthogonal modes:
         P_galerkin = U_k^H @ P @ V_k
-        L_galerkin = U_k^H @ L_rw @ V_k
+        L_galerkin = U_k^H @ L @ V_k
         A_galerkin = D_out_galerkin @ P_galerkin
         where D_out_galerkin = diag(V_k^H @ out_degrees)
 
@@ -306,8 +327,6 @@ class BiLRG:
 
         # Convert to dense for projection if needed
         P_dense = to_dense(self.P_) if is_sparse(self.P_) else self.P_
-        L_rw_dense = to_dense(self.L_rw_) if is_sparse(self.L_rw_) else self.L_rw_
-        A_dense = to_dense(self.A_) if is_sparse(self.A_) else self.A_
 
         # Bi-Galerkin projection: U_k^H @ Operator @ V_k
         # Note: For real modes, U_k^H = U_k^T
@@ -317,8 +336,18 @@ class BiLRG:
             # Project transition matrix: P_galerkin = U_k^H @ P @ V_k
             P_galerkin = U_k_H @ P_dense @ self.V_k_
 
-            # Project random-walk Laplacian: L_galerkin = U_k^H @ L_rw @ V_k
-            L_galerkin = U_k_H @ L_rw_dense @ self.V_k_
+            # Project the spectral operator used for mode computation
+            if self.spectral_matrix == 'P':
+                # If modes computed from P, project P in spectral space
+                spectral_op_galerkin = U_k_H @ P_dense @ self.V_k_
+            else:
+                # If modes computed from L, project L in spectral space
+                L_dense = to_dense(self.L_) if is_sparse(self.L_) else self.L_
+                spectral_op_galerkin = U_k_H @ L_dense @ self.V_k_
+
+            # For consistency, always provide both P_galerkin and L_galerkin
+            L_dense = to_dense(self.L_) if is_sparse(self.L_) else self.L_
+            L_galerkin = U_k_H @ L_dense @ self.V_k_
 
             # Compute coarse adjacency properly via out-degrees
             # A_galerkin = D_out_galerkin @ P_galerkin
@@ -401,6 +430,7 @@ class BiLRG:
             # Spectral and quality metrics
             'eigenvalues': self.Lambda_k_,
             'fidelity': self.fidelity_,
+            'spectral_matrix': self.spectral_matrix,
             'n_original': self.A_.shape[0],
             'n_coarse': self.P_group_.shape[0],
             'n_galerkin': self.P_galerkin_.shape[0] if self.P_galerkin_ is not None else None
@@ -435,6 +465,7 @@ class BiLRG:
             'L_galerkin': self.L_galerkin_.copy(),
             'A_galerkin': self.A_galerkin_.copy(),
             'eigenvalues': self.Lambda_k_.copy(),
+            'spectral_matrix': self.spectral_matrix,
             'shape': self.P_galerkin_.shape
         }
 
@@ -457,9 +488,10 @@ class BiLRG:
 
         return np.linalg.matrix_power(self.P_group_, steps)
 
-    def fit_transform(self, A: Union[np.ndarray, sp.spmatrix]) -> np.ndarray:
+    def fit_transform(self, A: Union[np.ndarray, sp.spmatrix],
+                      L: Optional[Union[np.ndarray, sp.spmatrix]] = None) -> np.ndarray:
         """Fit model and return bi-embedding."""
-        self.fit(A)
+        self.fit(A, L)
         return self.get_embedding()
 
 
