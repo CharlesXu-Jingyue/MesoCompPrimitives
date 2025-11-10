@@ -266,6 +266,10 @@ class CTRNNAnalyzer:
         Step 4: Construct linearized dynamics matrices.
 
         For each block r: δẋ_r = A_rr δx_r + Σ_s E_rs δx_s + B_r^lin δu_r
+        where:
+        - A_rr = -I/τ_r + (1/τ_r) W̃_rr Γ_r
+        - E_rs = (1/τ_r) U_rs Γ_s
+        - B_r^lin = (1/τ_r) B_r
         """
         N = W_norm.shape[0]
         num_blocks = len(block_info)
