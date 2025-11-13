@@ -311,8 +311,8 @@ class CTRNNAnalyzer:
             A_rr = (-1.0 / tau[r]) * np.eye(n_r) + (1.0 / tau[r]) * W_rr @ sigmoid_gains[r]
             A_blocks[r] = A_rr
 
-            # C_rr = Γ_r
-            C_rr = sigmoid_gains[r]
+            # C_rr = I
+            C_rr = np.eye(n_r)
             C_blocks[r] = C_rr
 
             # Off-diagonal blocks: E_rs = (1/τ_r) W̃_rr Γ_s
@@ -320,10 +320,10 @@ class CTRNNAnalyzer:
                 if s != r:
                     W_rs = W_norm[np.ix_(indices_r, indices_s)]
 
-                    # B_rs = (1/τ_r) W̃_rr
-                    B_rs = (1.0 / tau[r]) * W_rs
+                    # B_rs = (1/τ_r) W̃_rr Γ_s
+                    B_rs = (1.0 / tau[r]) * W_rs @ sigmoid_gains[s]
                     B_blocks[(r, s)] = B_rs
-                    E_rs = B_rs @ sigmoid_gains[s]
+                    E_rs = B_rs
                     E_blocks[(r, s)] = E_rs
 
         # Construct global matrix A
