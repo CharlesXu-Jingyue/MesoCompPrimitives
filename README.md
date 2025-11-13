@@ -96,6 +96,16 @@ Swap a primitive with a functionally similar but topologically different one (e.
   - Linearized dynamics construction: δẋ = Aδx + Bδu with block structure
   - Optional eigenvalue, Schur decomposition, and balanced truncation analyses
   - Global stability checking and convergence diagnostics
+- **Inter-Block Control Ports & Per-Port Controllability**: State-port analysis for block-structured networks
+  - State-port construction: B_rs = E_rs = (1/τ_r) U_rs Γ_s from inter-block coupling matrices
+  - Per-port controllability Gramians with multiple computation modes:
+    - Infinite-horizon Gramians for stable systems (AW + WA^T + BB^T = 0)
+    - Discounted Gramians for unstable systems ((A+λI)W + W(A+λI)^T + BB^T = 0)
+    - Finite-horizon Gramians with time-bounded integration
+  - Covariance weighting for realistic input modeling (state, input, or output weighted)
+  - Port metrics and rankings: trace, maximum eigenvalue, rank, condition number
+  - Controllability analysis: per-port contributions to total system controllability
+  - Validation framework with stability checking and numerical diagnostics
 
 **In Progress:**
 - **Role Discovery**: Computational library development and canonical labeling
@@ -121,6 +131,12 @@ Swap a primitive with a functionally similar but topologically different one (e.
   - Local gain matrices: Γ_r = diag(σ'(x_r*)) for sigmoid nonlinearity
   - LTI dynamics: A_rr = -I/τ + W̃_rr Γ_r/τ, E_rs = U_rs Γ_s/τ
   - Stability analysis and balanced realization theory
+- **Port-Based Controllability Analysis**: Inter-block control characterization
+  - State-port definition: B_rs inputs from block s to block r via E_rs matrices
+  - Gramian-based controllability metrics for distributed control systems
+  - Per-port contribution analysis: decomposition of total controllability
+  - Multi-modal Gramian computation handling stable/unstable dynamics
+  - Port ranking and relative importance quantification
 
 **Dataset Overview:**
 - Original: 855 neurons across 68 cell types

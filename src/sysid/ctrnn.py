@@ -26,11 +26,14 @@ class FixedPointAnalysis:
 
     # Per-block fixed points
     fixed_points: Dict[int, np.ndarray]
+    fixed_points_global: Dict[int, np.ndarray]
     sigmoid_gains: Dict[int, np.ndarray]
     convergence_info: Dict[int, Dict[str, Any]]
 
     # Linearized dynamics
     A_blocks: Dict[int, np.ndarray]  # Diagonal blocks A_rr
+    B_blocks: Dict[Tuple[int, int], np.ndarray]  # Off-diagonal blocks B_rs
+    C_blocks: Dict[int, np.ndarray]  # Per-block observation matrices C_rr
     E_blocks: Dict[Tuple[int, int], np.ndarray]  # Off-diagonal blocks E_rs
     A_global: np.ndarray  # Full linearized system matrix
     B_linear: Optional[np.ndarray] = None
@@ -112,15 +115,22 @@ class CTRNNAnalyzer:
         # Get block information
         block_info = self._get_block_info(block_labels)
 
-        # Step 2: Per-block fixed-point computation
-        fixed_points, gains, conv_info = self._compute_block_fixed_points(
+        # Step 2: Fixed-point computation
+        # Per-block
+        fixed_points, gains, conv_info = self._compute_fixed_points(
             W_norm, block_info, bias
+        )
+
+        # Global
+        block_info_global = {0: np.arange(N)}
+        fixed_points_global, gains_global, conv_info_global = self._compute_fixed_points(
+            W_norm, block_info_global, bias
         )
 
         # Step 3: Sigmoid gains already computed in step 2
 
         # Step 4: Construct linearized dynamics
-        A_blocks, E_blocks, A_global, B_linear = self._construct_linearized_dynamics(
+        A_blocks, B_blocks, C_blocks, E_blocks, A_global, B_linear = self._construct_linearized_dynamics(
             W_norm, block_info, gains, time_constants, input_weights
         )
 
@@ -131,9 +141,12 @@ class CTRNNAnalyzer:
             original_norm=s_inf,
             safety_margin=self.safety_margin,
             fixed_points=fixed_points,
+            fixed_points_global=fixed_points_global,
             sigmoid_gains=gains,
             convergence_info=conv_info,
             A_blocks=A_blocks,
+            B_blocks=B_blocks,
+            C_blocks=C_blocks,
             E_blocks=E_blocks,
             A_global=A_global,
             B_linear=B_linear
@@ -188,11 +201,11 @@ class CTRNNAnalyzer:
         sigma_x = self._sigmoid(x)
         return sigma_x * (1.0 - sigma_x)
 
-    def _compute_block_fixed_points(self, W_norm: np.ndarray,
-                                  block_info: Dict[int, np.ndarray],
-                                  bias: np.ndarray) -> Tuple[Dict[int, np.ndarray],
-                                                           Dict[int, np.ndarray],
-                                                           Dict[int, Dict[str, Any]]]:
+    def _compute_fixed_points(self, W_norm: np.ndarray,
+                              block_info: Dict[int, np.ndarray],
+                              bias: np.ndarray) -> Tuple[Dict[int, np.ndarray],
+                                                         Dict[int, np.ndarray],
+                                                         Dict[int, Dict[str, Any]]]:
         """
         Step 2: Per-block fixed-point computation using Picard iteration.
 
@@ -268,7 +281,9 @@ class CTRNNAnalyzer:
         For each block r: δẋ_r = A_rr δx_r + Σ_s E_rs δx_s + B_r^lin δu_r
         where:
         - A_rr = -I/τ_r + (1/τ_r) W̃_rr Γ_r
-        - E_rs = (1/τ_r) U_rs Γ_s
+        - B_rs = (1/τ_r) W̃_rr
+        - C_rr = Γ_r
+        - E_rs = (1/τ_r) W̃_rr Γ_s = B_rs C_ss
         - B_r^lin = (1/τ_r) B_r
         """
         N = W_norm.shape[0]
@@ -284,6 +299,8 @@ class CTRNNAnalyzer:
 
         # Construct block matrices
         A_blocks = {}
+        B_blocks = {}
+        C_blocks = {}
         E_blocks = {}
 
         for r, indices_r in block_info.items():
@@ -294,11 +311,19 @@ class CTRNNAnalyzer:
             A_rr = (-1.0 / tau[r]) * np.eye(n_r) + (1.0 / tau[r]) * W_rr @ sigmoid_gains[r]
             A_blocks[r] = A_rr
 
-            # Off-diagonal blocks: E_rs = (1/τ_r) U_rs Γ_s
+            # C_rr = Γ_r
+            C_rr = sigmoid_gains[r]
+            C_blocks[r] = C_rr
+
+            # Off-diagonal blocks: E_rs = (1/τ_r) W̃_rr Γ_s
             for s, indices_s in block_info.items():
                 if s != r:
-                    U_rs = W_norm[np.ix_(indices_r, indices_s)]
-                    E_rs = (1.0 / tau[r]) * U_rs @ sigmoid_gains[s]
+                    W_rs = W_norm[np.ix_(indices_r, indices_s)]
+
+                    # B_rs = (1/τ_r) W̃_rr
+                    B_rs = (1.0 / tau[r]) * W_rs
+                    B_blocks[(r, s)] = B_rs
+                    E_rs = B_rs @ sigmoid_gains[s]
                     E_blocks[(r, s)] = E_rs
 
         # Construct global matrix A
@@ -322,7 +347,7 @@ class CTRNNAnalyzer:
                 B_r = input_weights[indices_r]
                 B_linear[indices_r] = (1.0 / tau[r]) * B_r
 
-        return A_blocks, E_blocks, A_global, B_linear
+        return A_blocks, B_blocks, C_blocks, E_blocks, A_global, B_linear
 
     def _compute_eigenvalues(self, A_blocks: Dict[int, np.ndarray]) -> Dict[int, np.ndarray]:
         """Step 5a: Compute eigenvalues for each block."""
