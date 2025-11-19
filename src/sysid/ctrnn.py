@@ -35,6 +35,7 @@ class FixedPointAnalysis:
     B_blocks: Dict[Tuple[int, int], np.ndarray]  # Off-diagonal blocks B_rs
     C_blocks: Dict[int, np.ndarray]  # Per-block observation matrices C_rr
     E_blocks: Dict[Tuple[int, int], np.ndarray]  # Off-diagonal blocks E_rs
+    A_assembled: np.ndarray  # Assembled block matrix A
     A_global: np.ndarray  # Full linearized system matrix
     B_linear: Optional[np.ndarray] = None
 
@@ -130,9 +131,14 @@ class CTRNNAnalyzer:
         # Step 3: Sigmoid gains already computed in step 2
 
         # Step 4: Construct linearized dynamics
-        A_blocks, B_blocks, C_blocks, E_blocks, A_global, B_linear = self._construct_linearized_dynamics(
+        A_blocks, B_blocks, C_blocks, E_blocks, A_assembled, B_linear = self._construct_linearized_dynamics(
             W_norm, block_info, gains, time_constants, input_weights
         )
+
+        A_global, _, _, _, _, _ = self._construct_linearized_dynamics(
+            W_norm, block_info_global, gains_global, time_constants, input_weights
+        )
+        A_global = A_global[0]
 
         # Create base results
         results = FixedPointAnalysis(
@@ -148,6 +154,7 @@ class CTRNNAnalyzer:
             B_blocks=B_blocks,
             C_blocks=C_blocks,
             E_blocks=E_blocks,
+            A_assembled=A_assembled,
             A_global=A_global,
             B_linear=B_linear
         )
@@ -303,28 +310,48 @@ class CTRNNAnalyzer:
         C_blocks = {}
         E_blocks = {}
 
-        for r, indices_r in block_info.items():
+        if num_blocks == 1:
+            # Single block case
+            r = next(iter(block_info))
+            indices_r = block_info[r]
             n_r = len(indices_r)
-
-            # Diagonal block: A_rr = -I/τ_r + (1/τ_r) W̃_rr Γ_r
             W_rr = W_norm[np.ix_(indices_r, indices_r)]
+
             A_rr = (-1.0 / tau[r]) * np.eye(n_r) + (1.0 / tau[r]) * W_rr @ sigmoid_gains[r]
             A_blocks[r] = A_rr
 
-            # C_rr = I
-            C_rr = np.eye(n_r)
+            C_rr = np.zeros((n_r, n_r))
             C_blocks[r] = C_rr
 
-            # Off-diagonal blocks: E_rs = (1/τ_r) W̃_rr Γ_s
-            for s, indices_s in block_info.items():
-                if s != r:
-                    W_rs = W_norm[np.ix_(indices_r, indices_s)]
+            B_rs = np.zeros((n_r, n_r))
+            B_blocks[(r, r)] = B_rs
 
-                    # B_rs = (1/τ_r) W̃_rr Γ_s
-                    B_rs = (1.0 / tau[r]) * W_rs @ sigmoid_gains[s]
-                    B_blocks[(r, s)] = B_rs
-                    E_rs = B_rs
-                    E_blocks[(r, s)] = E_rs
+            E_rs = np.zeros((n_r, n_r))
+            E_blocks[(r, r)] = E_rs
+
+        else:
+            for r, indices_r in block_info.items():
+                n_r = len(indices_r)
+
+                # Diagonal block: A_rr = -I/τ_r + (1/τ_r) W̃_rr Γ_r
+                W_rr = W_norm[np.ix_(indices_r, indices_r)]
+                A_rr = (-1.0 / tau[r]) * np.eye(n_r) + (1.0 / tau[r]) * W_rr @ sigmoid_gains[r]
+                A_blocks[r] = A_rr
+
+                # C_rr = Γ_r
+                C_rr = sigmoid_gains[r]
+                C_blocks[r] = C_rr
+
+                # Off-diagonal blocks: E_rs = (1/τ_r) W̃_rr Γ_s
+                for s, indices_s in block_info.items():
+                    if s != r:
+                        W_rs = W_norm[np.ix_(indices_r, indices_s)]
+
+                        # B_rs = (1/τ_r) W̃_rr
+                        B_rs = (1.0 / tau[r]) * W_rs
+                        B_blocks[(r, s)] = B_rs
+                        E_rs = B_rs @ sigmoid_gains[s]
+                        E_blocks[(r, s)] = E_rs
 
         # Construct global matrix A
         A_global = np.zeros((N, N))
