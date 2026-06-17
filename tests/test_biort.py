@@ -159,7 +159,7 @@ class TestBiorthEmbedding:
         # Check that all components were computed
         assert biort.A_ is not None
         assert biort.P_ is not None
-        assert biort.L_rw_ is not None
+        assert biort.L_ is not None
         assert biort.U_k_ is not None
         assert biort.V_k_ is not None
         assert biort.Lambda_k_ is not None
