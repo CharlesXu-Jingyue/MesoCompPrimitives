@@ -1,7 +1,7 @@
 """
-Bi-orthogonal Laplacian Renormalization Group (bi-LRG) implementation.
+Bi-orthogonal Embedding implementation.
 
-This module implements the complete bi-LRG pipeline for hierarchical
+This module implements the complete bi-orthogonal embedding pipeline for hierarchical
 coarse-graining of directed weighted networks.
 """
 
@@ -12,16 +12,16 @@ from sklearn.cluster import KMeans
 from typing import Union, Tuple, Optional, Dict, List
 import warnings
 
-from .utils_bilrg import (
+from .utils_biort import (
     is_sparse, to_dense, safe_divide, compute_stationary_distribution,
     biorthogonal_modes, realify_modes, validate_transition_matrix,
     create_teleportation_matrix, spectral_fidelity
 )
 
 
-class BiLRG:
+class BiorthEmbedding:
     """
-    Bi-orthogonal Laplacian Renormalization Group for directed networks.
+    Bi-orthogonal Embedding for directed networks.
 
     Implements the complete pipeline from adjacency matrix to coarse-grained
     network representation via spectral analysis and mesoscale grouping.
@@ -74,9 +74,9 @@ class BiLRG:
         self.A_galerkin_ = None  # Bi-Galerkin projected adjacency
 
     def fit(self, A: Union[np.ndarray, sp.spmatrix],
-            L: Optional[Union[np.ndarray, sp.spmatrix]] = None) -> "BiLRG":
+            L: Optional[Union[np.ndarray, sp.spmatrix]] = None) -> "BiorthEmbedding":
         """
-        Fit bi-LRG to adjacency matrix.
+        Fit bi-orthogonal embedding to adjacency matrix.
 
         Parameters
         ----------
@@ -87,7 +87,7 @@ class BiLRG:
 
         Returns
         -------
-        self : BiLRG
+        self : BiorthEmbedding
             Fitted model
         """
         # Store original adjacency
@@ -495,9 +495,9 @@ class BiLRG:
         return self.get_embedding()
 
 
-class HierarchicalBiLRG:
+class HierarchicalBiorthEmbedding:
     """
-    Hierarchical (multilevel) bi-LRG for recursive coarse-graining.
+    Hierarchical (multilevel) bi-orthogonal embedding for recursive coarse-graining.
 
     Parameters
     ----------
@@ -510,7 +510,7 @@ class HierarchicalBiLRG:
     fidelity_threshold : float, default=0.5
         Stop if fidelity exceeds this threshold
     **kwargs
-        Additional parameters passed to BiLRG
+        Additional parameters passed to BiorthEmbedding
     """
 
     def __init__(self, k: int = 5, max_levels: int = 3, min_nodes: int = 10,
@@ -519,15 +519,15 @@ class HierarchicalBiLRG:
         self.max_levels = max_levels
         self.min_nodes = min_nodes
         self.fidelity_threshold = fidelity_threshold
-        self.bilrg_kwargs = kwargs
+        self.biort_kwargs = kwargs
 
         # Results storage
-        self.levels_ = []  # List of BiLRG instances
+        self.levels_ = []  # List of BiorthEmbedding instances
         self.hierarchy_ = []  # List of coarse graphs
 
-    def fit(self, A: Union[np.ndarray, sp.spmatrix]) -> "HierarchicalBiLRG":
+    def fit(self, A: Union[np.ndarray, sp.spmatrix]) -> "HierarchicalBiorthEmbedding":
         """
-        Fit hierarchical bi-LRG.
+        Fit hierarchical bi-orthogonal embedding.
 
         Parameters
         ----------
@@ -536,7 +536,7 @@ class HierarchicalBiLRG:
 
         Returns
         -------
-        self : HierarchicalBiLRG
+        self : HierarchicalBiorthEmbedding
             Fitted hierarchical model
         """
         self.levels_ = []
@@ -550,18 +550,18 @@ class HierarchicalBiLRG:
             if n_nodes <= self.min_nodes:
                 break
 
-            # Fit BiLRG at current level
-            bilrg = BiLRG(k=self.k, **self.bilrg_kwargs)
-            bilrg.fit(current_A)
+            # Fit BiorthEmbedding at current level
+            biort = BiorthEmbedding(k=self.k, **self.biort_kwargs)
+            biort.fit(current_A)
 
             # Store level results
-            self.levels_.append(bilrg)
-            coarse_graph = bilrg.get_coarse_graph()
+            self.levels_.append(biort)
+            coarse_graph = biort.get_coarse_graph()
             self.hierarchy_.append(coarse_graph)
 
             # Check fidelity stopping criterion
-            if bilrg.fidelity_ > self.fidelity_threshold:
-                warnings.warn(f"Stopping at level {level}: fidelity {bilrg.fidelity_:.3f} "
+            if biort.fidelity_ > self.fidelity_threshold:
+                warnings.warn(f"Stopping at level {level}: fidelity {biort.fidelity_:.3f} "
                              f"exceeds threshold {self.fidelity_threshold}")
                 break
 
@@ -574,8 +574,8 @@ class HierarchicalBiLRG:
         """Get complete hierarchy of coarse graphs."""
         return self.hierarchy_
 
-    def get_level(self, level: int) -> BiLRG:
-        """Get BiLRG instance at specific level."""
+    def get_level(self, level: int) -> BiorthEmbedding:
+        """Get BiorthEmbedding instance at specific level."""
         if level >= len(self.levels_):
             raise IndexError(f"Level {level} not available. Only {len(self.levels_)} levels computed.")
         return self.levels_[level]

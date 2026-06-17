@@ -71,7 +71,7 @@ Swap a primitive with a functionally similar but topologically different one (e.
   - Cell type distribution analysis across detected communities
 
 **Recently Added:**
-- **Bi-orthogonal Laplacian Renormalization Group (bi-LRG)**: Complete implementation of hierarchical coarse-graining
+- **Bi-orthogonal Embedding** (`biort` module): Complete implementation of hierarchical coarse-graining
   - Spectral analysis of directed random-walk dynamics with bi-orthogonal decomposition
   - Left and right eigenvector computation for non-symmetric operators
   - Bi-orthogonality verification (δ_ij inner products)

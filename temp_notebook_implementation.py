@@ -6,7 +6,7 @@ This file contains the complete code that would be added to the poc.ipynb notebo
 under the "System identification/Model-based" section.
 
 Usage in notebook:
-- Replace W = C_signed_grouped and group_labels = bilrg_labels with your actual variables
+- Replace W = C_signed_grouped and group_labels = biort_labels with your actual variables
 - Run each section sequentially for complete analysis
 """
 
@@ -35,7 +35,7 @@ analyzer = CTRNNAnalyzer(
 
 # Use the grouped connectivity matrix and block labels
 W = C_signed_grouped  # Your signed connectivity matrix
-group_labels = bilrg_labels  # Your block labels
+group_labels = biort_labels  # Your block labels
 
 print(f"Network size: {W.shape[0]} neurons")
 print(f"Number of blocks: {len(np.unique(group_labels))}")
