@@ -1,5 +1,5 @@
 """
-Utilities for bi-orthogonal Laplacian Renormalization Group (bi-LRG).
+Utilities for bi-orthogonal embedding.
 
 Small helper functions for spectral analysis, matrix operations, and validation.
 """

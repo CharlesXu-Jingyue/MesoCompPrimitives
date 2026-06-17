@@ -1,5 +1,5 @@
 """
-Test suite for bi-orthogonal Laplacian Renormalization Group (bi-LRG).
+Test suite for bi-orthogonal embedding.
 """
 
 import numpy as np
@@ -11,8 +11,8 @@ import os
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from bilrg import BiLRG, HierarchicalBiLRG
-from bilrg.utils_bilrg import (
+from biort import BiorthEmbedding, HierarchicalBiorthEmbedding
+from biort.utils_biort import (
     compute_stationary_distribution, biorthogonal_modes, realify_modes,
     validate_transition_matrix, create_teleportation_matrix, spectral_fidelity
 )
@@ -139,60 +139,60 @@ class TestUtilities:
         assert fidelity >= 0
 
 
-class TestBiLRG:
-    """Test BiLRG class."""
+class TestBiorthEmbedding:
+    """Test BiorthEmbedding class."""
 
     def test_init(self):
-        """Test BiLRG initialization."""
-        bilrg = BiLRG(k=5, alpha=0.95)
-        assert bilrg.k == 5
-        assert bilrg.alpha == 0.95
-        assert bilrg.A_ is None
+        """Test BiorthEmbedding initialization."""
+        biort = BiorthEmbedding(k=5, alpha=0.95)
+        assert biort.k == 5
+        assert biort.alpha == 0.95
+        assert biort.A_ is None
 
     def test_fit_dense(self):
-        """Test BiLRG fitting with dense matrix."""
+        """Test BiorthEmbedding fitting with dense matrix."""
         A = create_test_adjacency(15, seed=42)
-        bilrg = BiLRG(k=3, random_state=42)
+        biort = BiorthEmbedding(k=3, random_state=42)
 
-        bilrg.fit(A)
+        biort.fit(A)
 
         # Check that all components were computed
-        assert bilrg.A_ is not None
-        assert bilrg.P_ is not None
-        assert bilrg.L_rw_ is not None
-        assert bilrg.U_k_ is not None
-        assert bilrg.V_k_ is not None
-        assert bilrg.Lambda_k_ is not None
-        assert bilrg.X_ is not None
-        assert bilrg.C_ is not None
-        assert bilrg.groups_ is not None
+        assert biort.A_ is not None
+        assert biort.P_ is not None
+        assert biort.L_rw_ is not None
+        assert biort.U_k_ is not None
+        assert biort.V_k_ is not None
+        assert biort.Lambda_k_ is not None
+        assert biort.X_ is not None
+        assert biort.C_ is not None
+        assert biort.groups_ is not None
 
         # Check shapes
         n = A.shape[0]
-        assert bilrg.U_k_.shape[0] == n
-        assert bilrg.V_k_.shape[0] == n
-        assert bilrg.X_.shape[0] == n
-        assert bilrg.C_.shape[0] == n
+        assert biort.U_k_.shape[0] == n
+        assert biort.V_k_.shape[0] == n
+        assert biort.X_.shape[0] == n
+        assert biort.C_.shape[0] == n
 
     def test_fit_sparse(self):
-        """Test BiLRG fitting with sparse matrix."""
+        """Test BiorthEmbedding fitting with sparse matrix."""
         A = create_sparse_test_adjacency(25, seed=42)
-        bilrg = BiLRG(k=3, random_state=42)
+        biort = BiorthEmbedding(k=3, random_state=42)
 
-        bilrg.fit(A)
+        biort.fit(A)
 
         # Check that fitting completed
-        assert bilrg.P_group_ is not None
-        assert bilrg.L_group_ is not None
-        assert bilrg.A_group_ is not None
+        assert biort.P_group_ is not None
+        assert biort.L_group_ is not None
+        assert biort.A_group_ is not None
 
     def test_get_coarse_graph(self):
         """Test coarse graph retrieval."""
         A = create_test_adjacency(12, seed=42)
-        bilrg = BiLRG(k=3, random_state=42)
-        bilrg.fit(A)
+        biort = BiorthEmbedding(k=3, random_state=42)
+        biort.fit(A)
 
-        coarse_graph = bilrg.get_coarse_graph()
+        coarse_graph = biort.get_coarse_graph()
 
         # Check required keys
         required_keys = ['P_group', 'L_group', 'A_group', 'membership',
@@ -204,10 +204,10 @@ class TestBiLRG:
     def test_get_embedding(self):
         """Test embedding retrieval."""
         A = create_test_adjacency(10, seed=42)
-        bilrg = BiLRG(k=3, random_state=42)
-        bilrg.fit(A)
+        biort = BiorthEmbedding(k=3, random_state=42)
+        biort.fit(A)
 
-        X = bilrg.get_embedding()
+        X = biort.get_embedding()
 
         assert X.shape[0] == 10
         assert X.shape[1] == 6  # 2 * k
@@ -215,10 +215,10 @@ class TestBiLRG:
     def test_get_modes(self):
         """Test mode retrieval."""
         A = create_test_adjacency(10, seed=42)
-        bilrg = BiLRG(k=3, random_state=42)
-        bilrg.fit(A)
+        biort = BiorthEmbedding(k=3, random_state=42)
+        biort.fit(A)
 
-        U_k, V_k, Lambda_k = bilrg.get_modes()
+        U_k, V_k, Lambda_k = biort.get_modes()
 
         assert U_k.shape == (10, 3)
         assert V_k.shape == (10, 3)
@@ -227,10 +227,10 @@ class TestBiLRG:
     def test_transform(self):
         """Test dynamics transformation."""
         A = create_test_adjacency(8, seed=42)
-        bilrg = BiLRG(k=2, random_state=42)
-        bilrg.fit(A)
+        biort = BiorthEmbedding(k=2, random_state=42)
+        biort.fit(A)
 
-        P_evolved = bilrg.transform(steps=2)
+        P_evolved = biort.transform(steps=2)
 
         # Check that it's a valid transition matrix
         assert validate_transition_matrix(P_evolved)
@@ -238,40 +238,40 @@ class TestBiLRG:
     def test_fit_transform(self):
         """Test fit_transform method."""
         A = create_test_adjacency(10, seed=42)
-        bilrg = BiLRG(k=3, random_state=42)
+        biort = BiorthEmbedding(k=3, random_state=42)
 
-        X = bilrg.fit_transform(A)
+        X = biort.fit_transform(A)
 
         assert X.shape == (10, 6)  # n x 2k
 
     def test_bi_galerkin_projection(self):
         """Test bi-Galerkin projection computation."""
         A = create_test_adjacency(15, seed=42)
-        bilrg = BiLRG(k=4, random_state=42)
-        bilrg.fit(A)
+        biort = BiorthEmbedding(k=4, random_state=42)
+        biort.fit(A)
 
         # Check that bi-Galerkin operators were computed
-        assert bilrg.P_galerkin_ is not None
-        assert bilrg.L_galerkin_ is not None
-        assert bilrg.A_galerkin_ is not None
+        assert biort.P_galerkin_ is not None
+        assert biort.L_galerkin_ is not None
+        assert biort.A_galerkin_ is not None
 
         # Check dimensions (should be k x k)
-        assert bilrg.P_galerkin_.shape == (4, 4)
-        assert bilrg.L_galerkin_.shape == (4, 4)
-        assert bilrg.A_galerkin_.shape == (4, 4)
+        assert biort.P_galerkin_.shape == (4, 4)
+        assert biort.L_galerkin_.shape == (4, 4)
+        assert biort.A_galerkin_.shape == (4, 4)
 
         # Check that results are real (since realify=True by default)
-        assert np.all(np.isreal(bilrg.P_galerkin_))
-        assert np.all(np.isreal(bilrg.L_galerkin_))
-        assert np.all(np.isreal(bilrg.A_galerkin_))
+        assert np.all(np.isreal(biort.P_galerkin_))
+        assert np.all(np.isreal(biort.L_galerkin_))
+        assert np.all(np.isreal(biort.A_galerkin_))
 
     def test_get_bi_galerkin_operators(self):
         """Test bi-Galerkin operators retrieval."""
         A = create_test_adjacency(12, seed=42)
-        bilrg = BiLRG(k=3, random_state=42)
-        bilrg.fit(A)
+        biort = BiorthEmbedding(k=3, random_state=42)
+        biort.fit(A)
 
-        galerkin_ops = bilrg.get_bi_galerkin_operators()
+        galerkin_ops = biort.get_bi_galerkin_operators()
 
         # Check required keys
         required_keys = ['P_galerkin', 'L_galerkin', 'A_galerkin', 'eigenvalues', 'shape']
@@ -285,46 +285,46 @@ class TestBiLRG:
 
     def test_error_handling(self):
         """Test error handling."""
-        bilrg = BiLRG(k=3)
+        biort = BiorthEmbedding(k=3)
 
         # Should raise error before fitting
         with pytest.raises(ValueError):
-            bilrg.get_coarse_graph()
+            biort.get_coarse_graph()
 
         with pytest.raises(ValueError):
-            bilrg.get_embedding()
+            biort.get_embedding()
 
         with pytest.raises(ValueError):
-            bilrg.get_modes()
+            biort.get_modes()
 
 
-class TestHierarchicalBiLRG:
-    """Test HierarchicalBiLRG class."""
+class TestHierarchicalBiorthEmbedding:
+    """Test HierarchicalBiorthEmbedding class."""
 
     def test_init(self):
         """Test hierarchical initialization."""
-        hbilrg = HierarchicalBiLRG(k=3, max_levels=2)
-        assert hbilrg.k == 3
-        assert hbilrg.max_levels == 2
+        hbiort = HierarchicalBiorthEmbedding(k=3, max_levels=2)
+        assert hbiort.k == 3
+        assert hbiort.max_levels == 2
 
     def test_fit(self):
         """Test hierarchical fitting."""
         A = create_test_adjacency(30, seed=42)
-        hbilrg = HierarchicalBiLRG(k=3, max_levels=2, min_nodes=5, random_state=42)
+        hbiort = HierarchicalBiorthEmbedding(k=3, max_levels=2, min_nodes=5, random_state=42)
 
-        hbilrg.fit(A)
+        hbiort.fit(A)
 
         # Check that levels were created
-        assert len(hbilrg.levels_) > 0
-        assert len(hbilrg.hierarchy_) > 0
+        assert len(hbiort.levels_) > 0
+        assert len(hbiort.hierarchy_) > 0
 
     def test_get_hierarchy(self):
         """Test hierarchy retrieval."""
         A = create_test_adjacency(20, seed=42)
-        hbilrg = HierarchicalBiLRG(k=2, max_levels=2, min_nodes=3, random_state=42)
-        hbilrg.fit(A)
+        hbiort = HierarchicalBiorthEmbedding(k=2, max_levels=2, min_nodes=3, random_state=42)
+        hbiort.fit(A)
 
-        hierarchy = hbilrg.get_hierarchy()
+        hierarchy = hbiort.get_hierarchy()
 
         assert isinstance(hierarchy, list)
         assert len(hierarchy) > 0
@@ -332,26 +332,26 @@ class TestHierarchicalBiLRG:
     def test_get_level(self):
         """Test level retrieval."""
         A = create_test_adjacency(20, seed=42)
-        hbilrg = HierarchicalBiLRG(k=2, max_levels=2, min_nodes=3, random_state=42)
-        hbilrg.fit(A)
+        hbiort = HierarchicalBiorthEmbedding(k=2, max_levels=2, min_nodes=3, random_state=42)
+        hbiort.fit(A)
 
-        level_0 = hbilrg.get_level(0)
-        assert isinstance(level_0, BiLRG)
+        level_0 = hbiort.get_level(0)
+        assert isinstance(level_0, BiorthEmbedding)
 
         # Should raise error for non-existent level
         with pytest.raises(IndexError):
-            hbilrg.get_level(10)
+            hbiort.get_level(10)
 
     def test_project_to_level(self):
         """Test vector projection to hierarchy level."""
         A = create_test_adjacency(15, seed=42)
-        hbilrg = HierarchicalBiLRG(k=2, max_levels=2, min_nodes=3, random_state=42)
-        hbilrg.fit(A)
+        hbiort = HierarchicalBiorthEmbedding(k=2, max_levels=2, min_nodes=3, random_state=42)
+        hbiort.fit(A)
 
         # Create test vector
         x = np.random.randn(15)
 
-        x_projected = hbilrg.project_to_level(x, target_level=0)
+        x_projected = hbiort.project_to_level(x, target_level=0)
 
         # Should be smaller dimension
         assert len(x_projected) <= len(x)
@@ -361,9 +361,9 @@ def test_edge_cases():
     """Test edge cases and robustness."""
     # Very small matrix
     A_small = np.array([[1, 1], [1, 1]])
-    bilrg = BiLRG(k=1, random_state=42)
-    bilrg.fit(A_small)
-    assert bilrg.P_group_ is not None
+    biort = BiorthEmbedding(k=1, random_state=42)
+    biort.fit(A_small)
+    assert biort.P_group_ is not None
 
     # Matrix with zeros
     A_sparse = np.zeros((5, 5))
@@ -371,14 +371,14 @@ def test_edge_cases():
     A_sparse[1, 2] = 1
     A_sparse[2, 0] = 1
 
-    bilrg = BiLRG(k=2, alpha=0.8, random_state=42)
-    bilrg.fit(A_sparse)
-    assert bilrg.P_ is not None
+    biort = BiorthEmbedding(k=2, alpha=0.8, random_state=42)
+    biort.fit(A_sparse)
+    assert biort.P_ is not None
 
 
 if __name__ == "__main__":
     # Run basic tests
-    print("Running basic bi-LRG tests...")
+    print("Running basic bi-orthogonal embedding tests...")
 
     # Test utility functions
     test_utils = TestUtilities()
@@ -386,13 +386,13 @@ if __name__ == "__main__":
     test_utils.test_validate_transition_matrix()
     print("✓ Utility tests passed")
 
-    # Test BiLRG
-    test_bilrg = TestBiLRG()
-    test_bilrg.test_fit_dense()
-    test_bilrg.test_get_coarse_graph()
-    test_bilrg.test_bi_galerkin_projection()
-    test_bilrg.test_get_bi_galerkin_operators()
-    print("✓ BiLRG tests passed")
+    # Test BiorthEmbedding
+    test_biort = TestBiorthEmbedding()
+    test_biort.test_fit_dense()
+    test_biort.test_get_coarse_graph()
+    test_biort.test_bi_galerkin_projection()
+    test_biort.test_get_bi_galerkin_operators()
+    print("✓ BiorthEmbedding tests passed")
 
     # Test edge cases
     test_edge_cases()

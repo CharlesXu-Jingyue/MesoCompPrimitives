@@ -1,12 +1,14 @@
-# Bi-LRG: Bi-orthogonal Laplacian Renormalization Group
+# Bi-orthogonal Embedding
 
-A Python implementation of spectral coarse-graining for **directed weighted networks**, based on the bi-orthogonal decomposition of the random-walk Laplacian.
+> Implemented in the `biort` module (class `BiorthEmbedding`); "bi-orthogonal embedding" is the method's descriptive name.
+
+A Python implementation of spectral coarse-graining for **directed weighted networks**, based on the bi-orthogonal decomposition of the random-walk Laplacian. Each node is embedded jointly in its forward (right-eigenvector) and backward (left-eigenvector) propagation modes — the *bi-orthogonal embedding* — and grouped by dynamical role.
 
 ## What it's for
 
 Neural circuits — like the EPG ring-attractor in the *Drosophila* central complex — can be directed: synaptic weight matrices are not symmetric. Standard spectral graph methods (e.g., symmetric Laplacian eigenmaps) assume undirected graphs and break down when applied to directed connectomes.
 
-bi-LRG addresses this by working directly with the **non-symmetric random-walk Laplacian** of a directed graph. It extracts the $k$ "slowest" dynamical modes (those that decay most slowly under diffusion), embeds each neuron jointly in the space of *forward* and *backward* propagation modes, groups neurons by their dynamical role, and produces a small coarse network that preserves the low-frequency spectral properties of the original.
+The bi-orthogonal embedding addresses this by working directly with the **non-symmetric random-walk Laplacian** of a directed graph. It extracts the $k$ "slowest" dynamical modes (those that decay most slowly under diffusion), embeds each neuron jointly in the space of *forward* and *backward* propagation modes, groups neurons by their dynamical role, and produces a small coarse network that preserves the low-frequency spectral properties of the original.
 
 The output is a hierarchy of mesoscale groups — a compressed wiring diagram — where each group corresponds to a coherent dynamical unit.
 
@@ -123,7 +125,7 @@ where $V_k^\text{group}$ are the eigenvectors of $P_\text{group}$. A value of 0 
 import sys
 sys.path.append('path/to/MesoCompPrimitives/src')
 
-from bilrg import BiLRG, HierarchicalBiLRG
+from biort import BiorthEmbedding, HierarchicalBiorthEmbedding
 ```
 
 ---
@@ -132,18 +134,18 @@ from bilrg import BiLRG, HierarchicalBiLRG
 
 ```python
 import numpy as np
-from bilrg import BiLRG
+from biort import BiorthEmbedding
 
 # A: weighted directed adjacency matrix (n x n), non-negative
 A = ...  # e.g., synaptic weight matrix
 
 # Fit with k=8 slow modes
-bilrg = BiLRG(k=8, alpha=0.95, cluster_method='kmeans',
+biort = BiorthEmbedding(k=8, alpha=0.95, cluster_method='kmeans',
               realify=False, spectral_matrix='L', random_state=42)
-bilrg.fit(A)
+biort.fit(A)
 
 # Coarse network
-coarse = bilrg.get_coarse_graph()
+coarse = biort.get_coarse_graph()
 print(f"Compressed {coarse['n_original']} → {coarse['n_coarse']} groups")
 print(f"Spectral fidelity: {coarse['fidelity']:.4f}")
 
@@ -153,17 +155,17 @@ P_group = coarse['P_group']         # (m, m) coarse transition matrix
 L_galerkin = coarse['L_galerkin']   # (k, k) — should be ~diagonal
 
 # Bi-embedding for visualization
-X = bilrg.get_embedding()           # (n, 2k)
+X = biort.get_embedding()           # (n, 2k)
 
 # Left/right modes
-U_k, V_k, Lambda_k = bilrg.get_modes()
+U_k, V_k, Lambda_k = biort.get_modes()
 ```
 
 ---
 
 ## API Reference
 
-### `BiLRG`
+### `BiorthEmbedding`
 
 | Parameter | Default | Description |
 |---|---|---|
@@ -201,22 +203,22 @@ U_k, V_k, Lambda_k = bilrg.get_modes()
 
 ---
 
-### `HierarchicalBiLRG`
+### `HierarchicalBiorthEmbedding`
 
-Applies bi-LRG recursively: the coarse adjacency $A_\text{group}$ at each level becomes the input to the next. Stops when nodes $\leq$ `min_nodes` or fidelity exceeds `fidelity_threshold`.
+Applies the bi-orthogonal embedding recursively: the coarse adjacency $A_\text{group}$ at each level becomes the input to the next. Stops when nodes $\leq$ `min_nodes` or fidelity exceeds `fidelity_threshold`.
 
 ```python
-from bilrg import HierarchicalBiLRG
+from biort import HierarchicalBiorthEmbedding
 
-hbilrg = HierarchicalBiLRG(k=5, max_levels=3, min_nodes=10, fidelity_threshold=0.5)
-hbilrg.fit(A)
+hbiort = HierarchicalBiorthEmbedding(k=5, max_levels=3, min_nodes=10, fidelity_threshold=0.5)
+hbiort.fit(A)
 
 # Access each level
-level0 = hbilrg.get_level(0)   # BiLRG instance at level 0
-hierarchy = hbilrg.get_hierarchy()  # list of coarse_graph dicts
+level0 = hbiort.get_level(0)   # BiorthEmbedding instance at level 0
+hierarchy = hbiort.get_hierarchy()  # list of coarse_graph dicts
 
 # Project a node-level vector to coarse level 1
-x_coarse = hbilrg.project_to_level(x, target_level=1)
+x_coarse = hbiort.project_to_level(x, target_level=1)
 ```
 
 ---
@@ -224,16 +226,16 @@ x_coarse = hbilrg.project_to_level(x, target_level=1)
 ## Usage Notes
 
 - **`realify=False`** keeps complex modes, which is useful for inspecting the eigenspectrum on the complex plane (oscillatory vs. purely decaying modes). Set to `True` for real-valued clustering and visualization.
-- **Custom Laplacian**: pass `bilrg.fit(A, L=L_bal)` to use a balanced or symmetrized Laplacian instead of $I - P$. The spectral analysis uses your $L$ but the transition matrix $P$ (built from $A$) is still used for Markov lumping.
-- **Verification**: after fitting, check `U_k^H @ bilrg.L_ @ V_k` — it should be diagonal with `Lambda_k` on the diagonal. Max off-diagonal magnitude $< 10^{-10}$ confirms correct bi-orthogonal decomposition.
+- **Custom Laplacian**: pass `biort.fit(A, L=L_bal)` to use a balanced or symmetrized Laplacian instead of $I - P$. The spectral analysis uses your $L$ but the transition matrix $P$ (built from $A$) is still used for Markov lumping.
+- **Verification**: after fitting, check `U_k^H @ biort.L_ @ V_k` — it should be diagonal with `Lambda_k` on the diagonal. Max off-diagonal magnitude $< 10^{-10}$ confirms correct bi-orthogonal decomposition.
 - **Fidelity interpretation**: values $< 0.3$ are generally good; values $> 0.7$ suggest the chosen $k$ is too small to capture the dominant structure.
 
 ---
 
 ## Connection to the Broader Pipeline
 
-bi-LRG is the **partition and role-discovery** step of MesoCompPrimitives. Its outputs feed directly into:
+The bi-orthogonal embedding is the **partition and role-discovery** step of MesoCompPrimitives. Its outputs feed directly into:
 
-- **DC-SBM** (`src/dcsbm`): group labels from bi-LRG can initialize block assignments for degree-corrected stochastic block model fitting, combining spectral and generative model perspectives.
+- **DC-SBM** (`src/dcsbm`): group labels from the bi-orthogonal embedding can initialize block assignments for degree-corrected stochastic block model fitting, combining spectral and generative model perspectives.
 - **System ID / CTRNN Analysis** (`src/sysid`): the coarse groups define the blocks $C_k$ for which per-block fixed points are computed and local linearizations $A_k^\text{red}$, $B_k^\text{red}$ are extracted.
 - **Port Analysis**: the bi-embedding's left modes indicate which neurons are strongly driven by inputs (high $|U_k|$), informing port definitions for controllability analysis.
