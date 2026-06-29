@@ -147,7 +147,8 @@ class PortAnalyzer:
         results.Wo_port = self._compute_observability_gramians(A_blocks, C_blocks, covariance_matrices)
 
         # Aggregate total Gramians
-        results.Wc_total = self._aggregate_total_gramians(results.Wc_port, blocks)
+        results.Wc_total = self._aggregate_total_gramians(results.Wc_port, blocks,
+                                                          results.block_sizes)
 
         # Compute metrics and modes
         results.port_metrics = self._compute_port_metrics(results.Wc_port)
@@ -386,7 +387,8 @@ class PortAnalyzer:
         return W
 
     def _aggregate_total_gramians(self, Wc_port: Dict[Tuple[int, int], np.ndarray],
-                                 blocks: List[int]) -> Dict[int, np.ndarray]:
+                                 blocks: List[int],
+                                 block_sizes: Dict[int, int]) -> Dict[int, np.ndarray]:
         """Aggregate per-port Gramians into total controllability per block."""
         Wc_total = {}
 
@@ -404,8 +406,8 @@ class PortAnalyzer:
             if total_W is not None:
                 Wc_total[r] = total_W
             else:
-                # No incoming ports - zero Gramian
-                block_size = next(W.shape[0] for (dest, src), W in Wc_port.items() if dest == r)
+                # No incoming ports - zero Gramian sized from the block itself
+                block_size = block_sizes[r]
                 Wc_total[r] = np.zeros((block_size, block_size))
 
         return Wc_total
@@ -600,6 +602,8 @@ def analyze_ctrnn_ports(ctrnn_results, config: Optional[PortConfig] = None) -> P
     analyzer = PortAnalyzer(config)
     return analyzer.analyze_ports(
         A_blocks=ctrnn_results.A_blocks,
+        B_blocks=ctrnn_results.B_blocks,
+        C_blocks=ctrnn_results.C_blocks,
         E_blocks=ctrnn_results.E_blocks
     )
 

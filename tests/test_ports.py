@@ -30,7 +30,11 @@ def create_stable_system():
         (1, 0): np.array([[0.2, 0.3], [0.1, 0.4], [0.3, 0.1]])   # 0 → 1
     }
 
-    return A_blocks, E_blocks
+    # With unit sigmoid gains (C = Γ = I) the port input matrices B equal the coupling E
+    B_blocks = {k: v.copy() for k, v in E_blocks.items()}
+    C_blocks = {r: np.eye(A.shape[0]) for r, A in A_blocks.items()}
+
+    return A_blocks, B_blocks, C_blocks, E_blocks
 
 
 def create_unstable_system():
@@ -45,7 +49,11 @@ def create_unstable_system():
         (1, 0): np.array([[0.3, 0.1], [0.2, 0.4]])
     }
 
-    return A_blocks, E_blocks
+    # With unit sigmoid gains (C = Γ = I) the port input matrices B equal the coupling E
+    B_blocks = {k: v.copy() for k, v in E_blocks.items()}
+    C_blocks = {r: np.eye(A.shape[0]) for r, A in A_blocks.items()}
+
+    return A_blocks, B_blocks, C_blocks, E_blocks
 
 
 class TestPortConfig:
@@ -99,7 +107,7 @@ class TestPortAnalyzer:
     def test_build_state_ports(self):
         """Test state port construction."""
         analyzer = PortAnalyzer()
-        A_blocks, E_blocks = create_stable_system()
+        A_blocks, B_blocks, C_blocks, E_blocks = create_stable_system()
 
         port_map = analyzer._build_state_ports(E_blocks)
 
@@ -115,7 +123,7 @@ class TestPortAnalyzer:
         analyzer = PortAnalyzer()
 
         # Test stable system
-        A_blocks_stable, _ = create_stable_system()
+        A_blocks_stable, _, _, _ = create_stable_system()
         stability_info = analyzer._check_stability(A_blocks_stable)
 
         for r in A_blocks_stable:
@@ -123,7 +131,7 @@ class TestPortAnalyzer:
             assert stability_info[r]['max_real_eigenvalue'] < 0
 
         # Test unstable system
-        A_blocks_unstable, _ = create_unstable_system()
+        A_blocks_unstable, _, _, _ = create_unstable_system()
         stability_info = analyzer._check_stability(A_blocks_unstable)
 
         assert stability_info[0]['is_stable'] == False  # Block 0 is unstable
@@ -137,7 +145,7 @@ class TestPortAnalyzer:
         A = np.array([[-2.0, 0.1], [0.2, -1.5]])
         B = np.array([[1.0, 0.0], [0.0, 1.0]])
 
-        W = analyzer._solve_infinite_horizon_gramian(A, B)
+        W = analyzer._solve_infinite_horizon_controllability_gramian(A, B)
 
         # Check properties
         assert W.shape == (2, 2)
@@ -160,7 +168,7 @@ class TestPortAnalyzer:
         A = np.array([[0.1, 0.2], [0.3, -0.5]])  # Mixed eigenvalues
         B = np.array([[1.0], [1.0]])
 
-        W = analyzer._solve_discounted_gramian(A, B)
+        W = analyzer._solve_discounted_controllability_gramian(A, B)
 
         # Check properties
         assert W.shape == (2, 2)
@@ -174,9 +182,9 @@ class TestPortAnalyzer:
     def test_basic_port_analysis(self):
         """Test basic port analysis pipeline."""
         analyzer = PortAnalyzer()
-        A_blocks, E_blocks = create_stable_system()
+        A_blocks, B_blocks, C_blocks, E_blocks = create_stable_system()
 
-        results = analyzer.analyze_ports(A_blocks, E_blocks)
+        results = analyzer.analyze_ports(A_blocks, B_blocks, C_blocks, E_blocks)
 
         # Check results structure
         assert isinstance(results, PortAnalysisResults)
@@ -201,9 +209,9 @@ class TestPortAnalyzer:
     def test_gramian_additivity(self):
         """Test that total Gramians equal sum of port Gramians."""
         analyzer = PortAnalyzer()
-        A_blocks, E_blocks = create_stable_system()
+        A_blocks, B_blocks, C_blocks, E_blocks = create_stable_system()
 
-        results = analyzer.analyze_ports(A_blocks, E_blocks)
+        results = analyzer.analyze_ports(A_blocks, B_blocks, C_blocks, E_blocks)
 
         # Check additivity for each block
         for r in A_blocks:
@@ -219,9 +227,9 @@ class TestPortAnalyzer:
     def test_port_metrics(self):
         """Test port metrics computation."""
         analyzer = PortAnalyzer()
-        A_blocks, E_blocks = create_stable_system()
+        A_blocks, B_blocks, C_blocks, E_blocks = create_stable_system()
 
-        results = analyzer.analyze_ports(A_blocks, E_blocks)
+        results = analyzer.analyze_ports(A_blocks, B_blocks, C_blocks, E_blocks)
 
         # Check metrics for each port
         for (r, s), metrics in results.port_metrics.items():
@@ -240,9 +248,9 @@ class TestPortAnalyzer:
     def test_port_rankings(self):
         """Test port ranking by metrics."""
         analyzer = PortAnalyzer(PortConfig(metric="trace"))
-        A_blocks, E_blocks = create_stable_system()
+        A_blocks, B_blocks, C_blocks, E_blocks = create_stable_system()
 
-        results = analyzer.analyze_ports(A_blocks, E_blocks)
+        results = analyzer.analyze_ports(A_blocks, B_blocks, C_blocks, E_blocks)
 
         # Check rankings structure
         for r, rankings in results.top_ports.items():
@@ -262,11 +270,11 @@ class TestPortAnalyzer:
         config = PortConfig(mode=GramianMode.INFINITE_HORIZON, stability_check=True)
         analyzer = PortAnalyzer(config)
 
-        A_blocks, E_blocks = create_unstable_system()
+        A_blocks, B_blocks, C_blocks, E_blocks = create_unstable_system()
 
         # Should issue warnings but complete analysis
         with pytest.warns(UserWarning):
-            results = analyzer.analyze_ports(A_blocks, E_blocks)
+            results = analyzer.analyze_ports(A_blocks, B_blocks, C_blocks, E_blocks)
 
         assert isinstance(results, PortAnalysisResults)
         assert len(results.Wc_port) == len(E_blocks)
@@ -276,10 +284,10 @@ class TestPortAnalyzer:
         config = PortConfig(mode=GramianMode.DISCOUNTED, discount_lambda=0.5)
         analyzer = PortAnalyzer(config)
 
-        A_blocks, E_blocks = create_unstable_system()
+        A_blocks, B_blocks, C_blocks, E_blocks = create_unstable_system()
 
         # Should complete without warnings
-        results = analyzer.analyze_ports(A_blocks, E_blocks)
+        results = analyzer.analyze_ports(A_blocks, B_blocks, C_blocks, E_blocks)
 
         assert isinstance(results, PortAnalysisResults)
         assert len(results.Wc_port) == len(E_blocks)
@@ -293,7 +301,7 @@ class TestPortAnalyzer:
         config = PortConfig(covariance_weighting=CovarianceWeighting.STATE)
         analyzer = PortAnalyzer(config)
 
-        A_blocks, E_blocks = create_stable_system()
+        A_blocks, B_blocks, C_blocks, E_blocks = create_stable_system()
 
         # Create synthetic covariance matrices
         covariance_matrices = {
@@ -301,13 +309,13 @@ class TestPortAnalyzer:
             1: np.array([[1.2, 0.05, 0.1], [0.05, 0.9, 0.15], [0.1, 0.15, 1.1]])
         }
 
-        results = analyzer.analyze_ports(A_blocks, E_blocks,
+        results = analyzer.analyze_ports(A_blocks, B_blocks, C_blocks, E_blocks,
                                        covariance_matrices=covariance_matrices)
 
         assert isinstance(results, PortAnalysisResults)
 
         # Weighted results should be different from unweighted
-        results_unweighted = PortAnalyzer().analyze_ports(A_blocks, E_blocks)
+        results_unweighted = PortAnalyzer().analyze_ports(A_blocks, B_blocks, C_blocks, E_blocks)
 
         for key in results.Wc_port:
             assert not np.allclose(results.Wc_port[key], results_unweighted.Wc_port[key])
@@ -319,8 +327,8 @@ class TestConvenienceFunctions:
     def test_validate_port_analysis(self):
         """Test port analysis validation."""
         analyzer = PortAnalyzer()
-        A_blocks, E_blocks = create_stable_system()
-        results = analyzer.analyze_ports(A_blocks, E_blocks)
+        A_blocks, B_blocks, C_blocks, E_blocks = create_stable_system()
+        results = analyzer.analyze_ports(A_blocks, B_blocks, C_blocks, E_blocks)
 
         validation = validate_port_analysis(results)
 
@@ -337,8 +345,8 @@ class TestConvenienceFunctions:
     def test_summarize_port_rankings(self):
         """Test port ranking summarization."""
         analyzer = PortAnalyzer()
-        A_blocks, E_blocks = create_stable_system()
-        results = analyzer.analyze_ports(A_blocks, E_blocks)
+        A_blocks, B_blocks, C_blocks, E_blocks = create_stable_system()
+        results = analyzer.analyze_ports(A_blocks, B_blocks, C_blocks, E_blocks)
 
         summary = summarize_port_rankings(results, top_k=2)
 
@@ -362,8 +370,10 @@ def test_integration_with_ctrnn():
     # Create a mock CTRNN result-like object
     class MockCTRNNResults:
         def __init__(self):
-            A_blocks, E_blocks = create_stable_system()
+            A_blocks, B_blocks, C_blocks, E_blocks = create_stable_system()
             self.A_blocks = A_blocks
+            self.B_blocks = B_blocks
+            self.C_blocks = C_blocks
             self.E_blocks = E_blocks
 
     mock_results = MockCTRNNResults()
@@ -383,8 +393,10 @@ def test_edge_cases():
     # Test with no inter-block connections
     A_blocks = {0: np.array([[-1.0]])}
     E_blocks = {}
+    B_blocks = {}
+    C_blocks = {0: np.eye(1)}
 
-    results = analyzer.analyze_ports(A_blocks, E_blocks)
+    results = analyzer.analyze_ports(A_blocks, B_blocks, C_blocks, E_blocks)
 
     assert len(results.port_map) == 0
     assert len(results.Wc_port) == 0
@@ -394,8 +406,10 @@ def test_edge_cases():
     # Test single connection
     A_blocks = {0: np.array([[-1.0]]), 1: np.array([[-2.0]])}
     E_blocks = {(0, 1): np.array([[0.5]])}
+    B_blocks = {(0, 1): np.array([[0.5]])}
+    C_blocks = {0: np.eye(1), 1: np.eye(1)}
 
-    results = analyzer.analyze_ports(A_blocks, E_blocks)
+    results = analyzer.analyze_ports(A_blocks, B_blocks, C_blocks, E_blocks)
 
     assert len(results.port_map) == 1
     assert len(results.Wc_port) == 1
