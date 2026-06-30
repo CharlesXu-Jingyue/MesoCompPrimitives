@@ -19,9 +19,17 @@ decompose different operators in different ways:
 | **eig(A)** | raw `A` | **eigenvectors** (dominant `\|λ\|`) | none (raw magnitudes) | centrality (`\|λ\|`) |
 | **SVD** | raw `A` | **singular vectors** | none (raw magnitudes) | connection energy (`σ`) |
 
-The diffusion embedding is what `src/biort/biort.py` computes (slow eigenvectors
-of the random-walk Laplacian, with teleportation). `eig(A)` and SVD are computed
-directly in the notebook.
+"Diffusion" is computed **two ways**, and both are reported below:
+- **`biort` bi-embedding** (`src/biort/biort.py`): teleported transition matrix
+  (`α = 0.95`), realified, stacking the **forward (right)** and **backward (left)**
+  slow eigenvectors `[Re(V) | Re(U)]`. This is what the rest of the notebook
+  (ring-manifold, k=2 panels) uses. Below it is also split into its forward-only,
+  backward-only, and forward+backward parts.
+- **`eig(L)`, hand-rolled**: raw `P = D_out⁻¹A` (no teleportation), **forward
+  (right) eigenvectors only**, `[Re(V) | Im(V)]`.
+
+They differ in teleportation, realification, and which modes are kept, so they are
+*not* the same vectors. `eig(A)` and SVD are computed directly in the notebook.
 
 ---
 
@@ -66,12 +74,50 @@ structure), and within eigen, **raw vs row-normalized** (centrality vs diffusion
 | non-normality `‖AAᵀ−AᵀA‖/‖A‖²` | 0.09 | 0.32 |
 | diffusion spectral gap (2nd `\|eig L\|`) | 0.056 | 0.707 |
 | top singular values | 191,172,151,… (gradual) | **753**,309,293,… (one dominant) |
-| top `\|eig(A)\|` | — | **701**,160,160,133,… (Perron + ring pair) |
-| **EPG: `\|corr\|` leading mode vs ring** | diffusion **0.99** · eig(A) **0.84** · SVD **0.77** | — |
-| **D7+EPG: K=2 ARI vs cell type** | — | diffusion **0.02** · eig(A) **−0.01** · SVD **1.00** |
+| top `\|eig(A)\|` | 188,169,147,… (gradual) | **701**,160,160,133,… (Perron + ring pair) |
 
-(See `figures/biort_epg_three_methods.pdf` and
-`figures/biort_d7epg_three_methods.pdf` for the side-by-side embeddings.)
+### Benchmarks
+
+Two scalar benchmarks per method — **EPG ring correlation** (does a leading mode
+trace the ring?) and **Delta7 + EPG cell-type ARI** (do the K=2 clusters equal the
+cell types?). The `biort` diffusion bi-embedding is split into its **forward**
+(right-eigenvector) and **backward** (left-eigenvector) halves and the full
+**forward+backward**, alongside the hand-rolled `eig(L)`, `eig(A)`, and SVD:
+
+| method | EPG ring corr ↑ | Delta7+EPG cell-type ARI ↑ |
+|---|---|---|
+| diffusion — `biort` forward (right modes) | **0.99** | −0.01 |
+| diffusion — `biort` backward (left modes) | 0.91 | 0.27 |
+| diffusion — `biort` forward+backward | **0.99** | 0.24 |
+| diffusion — `eig(L)`, hand-rolled (forward only) | **0.99** | 0.02 |
+| `eig(A)` | 0.84 | −0.01 |
+| SVD of `A` | 0.80 | **1.00** |
+
+> **ring corr** `= max(|pearson(mode, cos θ)|, |pearson(mode, sin θ)|)` over a
+> method's leading modes, `θ = 2π·(ring index)/16`; 1 ⇒ the mode is a pure ring
+> harmonic. **ARI** = adjusted Rand index of the K=2 clustering vs the two cell
+> types; 1 = perfect, 0 = chance.
+
+Two readings stand out. (i) **No diffusion variant separates the cell types** —
+the best, the backward modes at ARI 0.27, is far below SVD's 1.00; forward modes
+are a pure ring (−0.01). The bi-embedding's modest 0.24 comes entirely from its
+backward half, since left eigenvectors weight nodes by *in/observation* role,
+where the EPG/Delta7 asymmetry partly lives. (ii) All diffusion variants trace the
+ring (0.91–0.99).
+
+Every number in both tables is computed and printed by the notebook's
+**"Diagnostics & benchmarks"** cell — the doc transcribes notebook output. The
+6×2 figure below is produced by the same notebook:
+
+![Six spectral embeddings (rows: biort forward, biort backward, biort forward+backward, hand-rolled eig(L), eig(A), SVD); left column EPG alone coloured by ring position; right column Delta7+EPG coloured by cell type with K=2 ARI in each title.](../figures/biort_three_methods_grid.png)
+
+*Rows = embedding; left = EPG alone (colour = ring position); right = Delta7 + EPG
+(colour = cell type, K=2 ARI in title). Each panel is **PCA(2) of that method's
+full embedding matrix** — PCA is applied to the n×features array the method
+produces (e.g. `[Re(V)|Im(V)]` for eig(L), `[U·S|V·S]` for SVD), purely to project
+to 2-D for the scatter; the K=2 clustering and ARI use the **full** embedding, not
+this 2-D projection. Every embedding traces the EPG ring; only SVD separates the
+two cell types.*
 
 ### 2.1 EPG alone — all three recover the ring
 
@@ -83,7 +129,7 @@ ordered by ring position:
   harmonics, ordered by spatial frequency),
 - eig(A) **0.84** (dominant eigenvectors of the near-circulant ring are the same
   harmonics),
-- SVD **0.77** (also the ring, but ordered by connection *energy*, so mixed with
+- SVD **0.80** (also the ring, but ordered by connection *energy*, so mixed with
   degree/magnitude variation → slightly noisier).
 
 The singular values decay gradually (191, 172, 151, …): many comparable harmonics,
@@ -92,7 +138,7 @@ the spectral signature of a ring.
 ### 2.2 Delta7 + EPG — only SVD separates the cell types
 
 Adding Delta7 makes `A` strongly directed (0.49) and **non-normal** (0.32). Now
-the three methods genuinely diverge, and **only SVD** aligns with cell type:
+the methods genuinely diverge, and **only SVD** aligns with cell type:
 
 - **SVD — ARI 1.00.** One singular value dominates (`σ₁ = 753` vs `σ₂ = 309`).
   That rank-1 component is the **role contrast**: EPG rows are out-heavy sources
@@ -106,7 +152,10 @@ the three methods genuinely diverge, and **only SVD** aligns with cell type:
   (corr 0.02). The cell-type contrast is a **maximal-stretch (singular)** direction,
   **not an invariant (eigen)** direction — and for this non-normal `A` the two are
   different (`σ₁ = 753` ≠ `λ₁ = 701`, different vectors).
-- **diffusion — ARI 0.02.** Misses it for two further reasons (next section).
+- **diffusion — ARI ≤ 0.27.** Every variant misses it: hand-rolled `eig(L)` 0.02,
+  biort forward −0.01, biort forward+backward 0.24, biort backward 0.27 (the best,
+  because left modes carry some in/observation-role signal — still far below SVD).
+  Two further reasons in the next section.
 
 The key lesson: **both eigen-methods (dynamics) fail; only the singular-vector
 method (structure) succeeds.** "Raw vs normalized" is a red herring here — `eig(A)`
