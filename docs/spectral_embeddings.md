@@ -109,7 +109,7 @@ Every number in both tables is computed and printed by the notebook's
 **"Diagnostics & benchmarks"** cell — the doc transcribes notebook output. The
 6×2 figure below is produced by the same notebook:
 
-![Six spectral embeddings (rows: biort forward, biort backward, biort forward+backward, hand-rolled eig(L), eig(A), SVD); left column EPG alone coloured by ring position; right column Delta7+EPG coloured by cell type with K=2 ARI in each title.](../figures/biort_three_methods_grid.png)
+![Six spectral embeddings (rows: biort forward, biort backward, biort forward+backward, hand-rolled eig(L), eig(A), SVD); left column EPG alone coloured by ring position; right column Delta7+EPG coloured by cell type with K=2 ARI in each title.](../figures/biort_embeddings_grid.png)
 
 *Rows = embedding; left = EPG alone (colour = ring position); right = Delta7 + EPG
 (colour = cell type, K=2 ARI in title). Each panel is **PCA(2) of that method's
