@@ -119,6 +119,20 @@ to 2-D for the scatter; the K=2 clustering and ARI use the **full** embedding, n
 this 2-D projection. Every embedding traces the EPG ring; only SVD separates the
 two cell types.*
 
+The same six embeddings plotted with their **leading two columns directly (no
+PCA)** — confirming the PCA panels above are just rotations of these (`biort`
+forward's direct columns reproduce `biort_epg_ring_manifold` exactly, to machine
+precision):
+
+![Six embeddings, leading two columns plotted directly (no PCA); rows biort forward/backward/fwd+bwd, eig(L), eig(A), SVD; left EPG coloured by ring, right Delta7+EPG coloured by cell type.](../figures/biort_embeddings_grid_directcols.png)
+
+*Direct top-2 columns instead of PCA(2); K=2 ARI (right) is still computed on the
+full embedding. `biort` forward / fwd+bwd and `eig(L)` give the clean ring. Some
+methods look degenerate in raw columns — `eig(A)`'s columns 1–2 are the real parts
+of a conjugate eigen-pair (they collapse toward a line) and the `biort` backward
+ring harmonic lives in later columns — which is why PCA(2) is the cleaner default
+view.*
+
 ### 2.1 EPG alone — all three recover the ring
 
 The EPG subgraph is nearly symmetric and **near-normal** (0.09), so eig and SVD
